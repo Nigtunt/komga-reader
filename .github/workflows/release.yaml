@@ -32,13 +32,9 @@ jobs:
         with:
           flutter-version: '3.16.0'
           channel: 'stable'
-          cache: true
+          cache: false
       
-      # 4. 设置 Gradle
-      - name: 设置 Gradle
-        uses: gradle/gradle-build-action@v2
-      
-      # 5. 启用 Flutter
+      # 4. 启用 Flutter
       - name: 启用 Flutter
         run: flutter precache --android
       

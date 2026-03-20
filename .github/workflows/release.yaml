@@ -1,0 +1,83 @@
+# Flutter/Dart - Android APK 构建
+
+name: Android Release
+
+on:
+  push:
+    branches: [ main, develop ]
+    tags:
+      - 'v*'  # 版本标签触发 Release
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    
+    steps:
+      # 1. 检出代码
+      - name: 检出代码
+        uses: actions/checkout@v4
+      
+      # 2. 设置 Java 环境（Flutter Android 构建需要）
+      - name: 设置 Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+      
+      # 3. 设置 Flutter 环境
+      - name: 设置 Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.x'
+          channel: 'stable'
+          cache: true
+      
+      # 4. 获取依赖
+      - name: 获取依赖
+        run: flutter pub get
+      
+      # 5. 代码分析（可选，失败不影响构建）
+      - name: 代码分析
+        run: flutter analyze
+        continue-on-error: true
+      
+      # 6. 构建 Debug APK（每次推送都构建）
+      - name: 构建 Debug APK
+        if: startsWith(github.ref, 'refs/tags/v') == false
+        run: flutter build apk --debug
+      
+      # 7. 上传 Debug APK
+      - name: 上传 Debug APK
+        if: startsWith(github.ref, 'refs/tags/v') == false
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-apk
+          path: build/app/outputs/flutter-apk/app-debug.apk
+          retention-days: 30
+      
+      # 8. 构建 Release APK（仅版本标签）
+      - name: 构建 Release APK
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: flutter build apk --release
+      
+      # 9. 上传 Release APK
+      - name: 上传 Release APK
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 90
+      
+      # 10. 创建 GitHub Release（仅版本标签）
+      - name: 创建 GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: build/app/outputs/flutter-apk/app-release.apk
+          generate_release_notes: true
+          draft: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

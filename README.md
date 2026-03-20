@@ -1,6 +1,11 @@
 # 📚 Komga Reader
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![Flutter](https://img.shields.io/badge/Flutter-3.x-blue)](https://flutter.dev)
+
 A lightweight Flutter comic reader for Komga, supporting Android and iOS.
+
+**Repository**: https://github.com/Nigtunt/komga-reader
 
 ## Features
 

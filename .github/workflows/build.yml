@@ -1,0 +1,202 @@
+# Flutter/Dart
+
+name: Flutter CI
+
+on:
+  push:
+    branches: [ main, develop ]
+    tags:
+      - 'v*'  # 推送版本标签时触发
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  # ==================== 构建任务 ====================
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      # 1. 检出代码
+      - uses: actions/checkout@v3
+      
+      # 2. 设置 Flutter 环境
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.x'
+          channel: 'stable'
+          cache: true  # 启用缓存加速
+      
+      # 3. 安装依赖
+      - name: 安装依赖
+        run: flutter pub get
+      
+      # 4. 代码格式化检查
+      - name: 检查代码格式化
+        run: dart format --output=none --set-exit-if-changed .
+      
+      # 5. 静态分析
+      - name: 静态分析
+        run: flutter analyze
+      
+      # 6. 运行测试
+      - name: 运行测试
+        run: flutter test
+      
+      # 7. 生成覆盖率报告（可选）
+      - name: 生成测试覆盖率
+        run: flutter test --coverage
+        if: github.event_name == 'push'
+      
+      # 8. 构建 Debug APK
+      - name: 构建 Debug APK
+        run: flutter build apk --debug
+      
+      # 9. 上传 APK 产物
+      - name: 上传 APK
+        uses: actions/upload-artifact@v3
+        with:
+          name: debug-apk
+          path: build/app/outputs/flutter-apk/app-debug.apk
+
+  # ==================== Android Release 构建 ====================
+  android-release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')  # 仅版本标签触发
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.x'
+          channel: 'stable'
+      
+      - name: 安装依赖
+        run: flutter pub get
+      
+      # 设置 Android 签名（需要配置 Secrets）
+      - name: 解码 Android 密钥库
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE }}" | base64 --decode > android/app/upload-keystore.jks
+        if: ${{ secrets.ANDROID_KEYSTORE }}
+      
+      - name: 构建 Release APK
+        run: flutter build apk --release
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      
+      - name: 上传 Release APK
+        uses: actions/upload-artifact@v3
+        with:
+          name: release-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+
+  # ==================== iOS 构建 ====================
+  ios-build:
+    needs: build
+    runs-on: macos-latest
+    if: startsWith(github.ref, 'refs/tags/v')  # 仅版本标签触发
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.x'
+          channel: 'stable'
+      
+      - name: 安装依赖
+        run: flutter pub get
+      
+      # iOS 需要配置证书和描述文件
+      - name: 构建 iOS
+        run: flutter build ios --release --no-codesign
+      
+      - name: 上传 iOS 构建产物
+        uses: actions/upload-artifact@v3
+        with:
+          name: ios-build
+          path: build/ios/iphoneos/Runner.app
+
+  # ==================== 发布到 GitHub Releases ====================
+  release:
+    needs: [android-release, ios-build]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: 下载 Android Release APK
+        uses: actions/download-artifact@v3
+        with:
+          name: release-apk
+          path: artifacts/
+      
+      - name: 下载 iOS Build
+        uses: actions/download-artifact@v3
+        with:
+          name: ios-build
+          path: artifacts/ios/
+      
+      # 创建 GitHub Release
+      - name: 创建 Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            artifacts/*.apk
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ==================== Web 构建（可选） ====================
+  web-build:
+    needs: build
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.x'
+          channel: 'stable'
+      
+      - name: 安装依赖
+        run: flutter pub get
+      
+      - name: 构建 Web
+        run: flutter build web
+      
+      - name: 上传 Web 产物
+        uses: actions/upload-artifact@v3
+        with:
+          name: web-build
+          path: build/web/
+
+  # ==================== 部署到 GitHub Pages（可选） ====================
+  deploy-pages:
+    needs: web-build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: 下载 Web 构建产物
+        uses: actions/download-artifact@v3
+        with:
+          name: web-build
+          path: build/web/
+      
+      # 部署到 GitHub Pages
+      - name: 部署到 GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: build/web/

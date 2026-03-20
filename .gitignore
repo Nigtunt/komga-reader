@@ -79,3 +79,6 @@ coverage/
 
 # Hive
 *.hive
+
+# Android local properties (machine-specific paths)
+/android/local.properties

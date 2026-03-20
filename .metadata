@@ -1,0 +1,7 @@
+[packages]
+active:
+  - flutter_riverpod
+  - dio
+  - retrofit
+  - hive
+  - cached_network_image

@@ -34,9 +34,13 @@ jobs:
           channel: 'stable'
           cache: true
       
-      # 4. 启用 Flutter
+      # 4. 设置 Gradle
+      - name: 设置 Gradle
+        uses: gradle/gradle-build-action@v2
+      
+      # 5. 启用 Flutter
       - name: 启用 Flutter
-        run: flutter precache
+        run: flutter precache --android
       
       # 5. 获取依赖
       - name: 获取依赖
@@ -50,17 +54,27 @@ jobs:
       - name: 重新获取依赖
         run: flutter pub get
       
-      # 8. 代码分析（可选，失败不影响构建）
+      # 8. 诊断信息
+      - name: 诊断信息
+        run: |
+          echo "=== Flutter Doctor ==="
+          flutter doctor -v
+          echo "=== Gradle Version ==="
+          cat android/gradle/wrapper/gradle-wrapper.properties
+          echo "=== Local Properties ==="
+          cat android/local.properties || echo "No local.properties"
+      
+      # 9. 代码分析（可选，失败不影响构建）
       - name: 代码分析
         run: flutter analyze || true
         continue-on-error: true
       
-      # 9. 构建 Debug APK（每次推送都构建）
+      # 10. 构建 Debug APK（每次推送都构建）
       - name: 构建 Debug APK
         if: startsWith(github.ref, 'refs/tags/v') == false
         run: flutter build apk --debug --no-tree-shake-icons
       
-      # 10. 上传 Debug APK
+      # 11. 上传 Debug APK
       - name: 上传 Debug APK
         if: startsWith(github.ref, 'refs/tags/v') == false
         uses: actions/upload-artifact@v4
@@ -69,12 +83,12 @@ jobs:
           path: build/app/outputs/flutter-apk/app-debug.apk
           retention-days: 30
       
-      # 11. 构建 Release APK（仅版本标签）
+      # 12. 构建 Release APK（仅版本标签）
       - name: 构建 Release APK
         if: startsWith(github.ref, 'refs/tags/v')
         run: flutter build apk --release --no-tree-shake-icons
       
-      # 12. 上传 Release APK
+      # 13. 上传 Release APK
       - name: 上传 Release APK
         if: startsWith(github.ref, 'refs/tags/v')
         uses: actions/upload-artifact@v4
@@ -83,7 +97,7 @@ jobs:
           path: build/app/outputs/flutter-apk/app-release.apk
           retention-days: 90
       
-      # 13. 创建 GitHub Release（仅版本标签）
+      # 14. 创建 GitHub Release（仅版本标签）
       - name: 创建 GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v1

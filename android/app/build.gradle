@@ -17,7 +17,8 @@ if (flutterVersionName == null) {
 }
 
 android {
-    compileSdkVersion 33
+    namespace "com.komga.komga_reader"
+    compileSdk 34
     ndkVersion flutter.ndkVersion
 
     compileOptions {
@@ -35,8 +36,8 @@ android {
 
     defaultConfig {
         applicationId "com.komga.komga_reader"
-        minSdkVersion 21
-        targetSdkVersion 33
+        minSdk 21
+        targetSdk 34
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
         multiDexEnabled true

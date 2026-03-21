@@ -2,11 +2,19 @@ rootProject.name = 'komga_reader'
 
 include ':app'
 
+// GitHub Actions 兼容：使用环境变量或默认值
 def localPropertiesFile = new File(rootProject.projectDir, "local.properties")
 def properties = new Properties()
-assert localPropertiesFile.exists()
-localPropertiesFile.withReader("UTF-8") { reader -> properties.load(reader) }
 
-def flutterSdkPath = properties.getProperty("flutter.sdk")
-assert flutterSdkPath != null, "flutter.sdk not set in local.properties"
-apply from: "$flutterSdkPath/packages/flutter_tools/gradle/app_plugin_loader.gradle"
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.withReader("UTF-8") { reader -> properties.load(reader) }
+}
+
+def flutterSdkPath = properties.getProperty("flutter.sdk") ?: System.getenv("FLUTTER_ROOT")
+
+if (flutterSdkPath != null) {
+    apply from: "$flutterSdkPath/packages/flutter_tools/gradle/app_plugin_loader.gradle"
+} else {
+    // GitHub Actions 环境中，flutter-action 会自动配置，无需手动加载
+    println "Flutter SDK path not set, skipping plugin loader (CI environment)"
+}
